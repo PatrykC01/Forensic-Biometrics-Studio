@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 import { sampleLine, findPeaks, Point } from "./measurementUtils";
 
 interface MeasurementLine {
@@ -55,6 +56,12 @@ export class ImageDpiCalibration {
         this.canvas = canvas;
         if (options?.referenceMm) this.referenceMm = options.referenceMm;
         this.onScaleComputed = options?.onScaleComputed;
+        if (image.naturalWidth && canvas.width !== image.naturalWidth) {
+            canvas.width = image.naturalWidth;
+        }
+        if (image.naturalHeight && canvas.height !== image.naturalHeight) {
+            canvas.height = image.naturalHeight;
+        }
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Cannot get canvas context");
         this.ctx = ctx;
@@ -194,14 +201,16 @@ export class ImageDpiCalibration {
                 // eslint-disable-next-line security/detect-object-injection
                 diffs.push(peaksIdx[i + 1]! - peaksIdx[i]!);
             }
-            const sorted = diffs.filter(v => v > 0).sort((a, b) => a - b);
+            const sorted = diffs
+                .filter(value => value > 0)
+                .sort((a, b) => a - b);
             if (sorted.length === 0) return;
             const median = sorted[Math.floor(sorted.length / 2)]!;
             const inliers = sorted.filter(
-                v => v >= median * 0.5 && v <= median * 1.5
+                value => value >= median * 0.5 && value <= median * 1.5
             );
             pxPerMmOriginal =
-                inliers.reduce((a, b) => a + b, 0) / inliers.length;
+                inliers.reduce((sum, value) => sum + value, 0) / inliers.length;
         } else {
             const dx = line.pointB.x - line.pointA.x;
             const dy = line.pointB.y - line.pointA.y;
@@ -222,8 +231,8 @@ export class ImageDpiCalibration {
         }
 
         const canvas = document.createElement("canvas");
-        canvas.width = this.image.naturalWidth * scaleFactor;
-        canvas.height = this.image.naturalHeight * scaleFactor;
+        canvas.width = Math.round(this.image.naturalWidth * scaleFactor);
+        canvas.height = Math.round(this.image.naturalHeight * scaleFactor);
         const ctx = canvas.getContext("2d")!;
         ctx.imageSmoothingQuality = "low";
         ctx.drawImage(this.image, 0, 0, canvas.width, canvas.height);

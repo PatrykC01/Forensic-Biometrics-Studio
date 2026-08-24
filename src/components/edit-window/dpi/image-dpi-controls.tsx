@@ -12,6 +12,7 @@ interface ImageDpiControlsProps {
     active: boolean;
     onActiveChange: (active: boolean) => void;
     onScaleComputed: (scaleFactor: number) => void;
+    disabled?: boolean;
 }
 
 export default function ImageDpiControls({
@@ -20,11 +21,19 @@ export default function ImageDpiControls({
     active,
     onActiveChange,
     onScaleComputed,
+    disabled = false,
 }: ImageDpiControlsProps) {
     const { t } = useTranslation(["tooltip"]);
     const [targetDpi, setTargetDpi] = useState<500 | 1000>(1000);
     const [referenceMm, setReferenceMm] = useState(10);
     const handlerRef = useRef<ImageDpiCalibration | null>(null);
+
+    // Disable dpi when fft editor is active
+    useEffect(() => {
+        if (disabled && active) {
+            onActiveChange(false);
+        }
+    }, [disabled, active, onActiveChange]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -33,6 +42,12 @@ export default function ImageDpiControls({
         if (!canvas) return;
 
         if (active && img) {
+            if (img.naturalWidth && canvas.width !== img.naturalWidth) {
+                canvas.width = img.naturalWidth;
+            }
+            if (img.naturalHeight && canvas.height !== img.naturalHeight) {
+                canvas.height = img.naturalHeight;
+            }
             if (!handlerRef.current) {
                 handlerRef.current = new ImageDpiCalibration(img, canvas, {
                     referenceMm,
@@ -42,7 +57,9 @@ export default function ImageDpiControls({
             handlerRef.current.setTargetDpi(targetDpi);
             handlerRef.current.setReferenceMm(referenceMm);
             handlerRef.current.setOnScaleComputed(onScaleComputed);
+            canvas.style.pointerEvents = "auto";
         } else {
+            canvas.style.pointerEvents = "none";
             handlerRef.current?.clear();
             handlerRef.current?.destroy();
             handlerRef.current = null;
@@ -62,6 +79,7 @@ export default function ImageDpiControls({
                 onClick={() => onActiveChange(!active)}
                 variant={active ? "destructive" : "default"}
                 className="flex items-center justify-center gap-2"
+                disabled={disabled}
             >
                 <Ruler size={ICON.SIZE} />
                 DPI
@@ -81,7 +99,9 @@ export default function ImageDpiControls({
                                 "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition",
                                 targetDpi === dpi
                                     ? "border-primary bg-primary/10"
-                                    : "border-border hover:bg-muted"
+                                    : "border-border hover:bg-muted",
+                                disabled &&
+                                    "opacity-50 pointer-events-none cursor-not-allowed"
                             )}
                         >
                             <span
@@ -104,6 +124,7 @@ export default function ImageDpiControls({
                                 className="hidden"
                                 checked={targetDpi === dpi}
                                 onChange={() => setTargetDpi(dpi)}
+                                disabled={disabled}
                             />
 
                             <span className="text-sm">{dpi} DPI</span>
@@ -121,6 +142,7 @@ export default function ImageDpiControls({
                     min={1}
                     step={1}
                     value={referenceMm}
+                    disabled={disabled}
                     aria-label={t("Reference length in millimeters", {
                         ns: "tooltip",
                     })}
@@ -130,7 +152,7 @@ export default function ImageDpiControls({
                             setReferenceMm(value);
                         }
                     }}
-                    className="h-9 w-full rounded-md border border-border/40 bg-background px-2 text-sm"
+                    className="h-9 w-full rounded-md border border-border/40 bg-background px-2 text-sm disabled:opacity-50"
                 />
                 <p className="text-xs text-muted-foreground">
                     {t("DPI reference length hint", { ns: "tooltip" })}
